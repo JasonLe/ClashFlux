@@ -22,8 +22,8 @@
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
-    --radius: 0.5rem;
+    --ring: 240 5.9% 10%;
+    --radius: 0.75rem; /* 圆角稍微加大一点，更圆润 */
   }
  
   .dark {
@@ -54,6 +54,56 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    /* 禁用默认的 OS 滚动条，使用自定义的 */
+    overflow: hidden; 
+  }
+}
+
+/* === 自定义动画工具类 === */
+@layer utilities {
+  /* 页面进入动画：轻微上浮 + 淡入 */
+  .animate-in-fade {
+    animation: enterConfig 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+  
+  /* 隐藏滚动条但允许滚动 (Chrome/Safari) */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* 美化滚动条 */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-zinc-300 dark:bg-zinc-700 rounded-full;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-zinc-400 dark:bg-zinc-600;
+  }
+
+  /* 遮罩渐变 (用于 Tab 列表左右两侧的淡出效果) */
+  .mask-image-gradient {
+    mask-image: linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent);
+  }
+}
+
+@keyframes enterConfig {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
