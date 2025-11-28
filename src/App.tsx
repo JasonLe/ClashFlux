@@ -4,10 +4,10 @@ import Dashboard from "@/pages/Dashboard";
 import Proxies from "@/pages/Proxies";
 import Profiles from "@/pages/Profiles";
 import Settings from "@/pages/Settings";
-import Logs from "@/pages/Logs";         // <--- 确保这行存在
-import Analytics from "@/pages/Analytics"; // <--- 确保这行存在
+import Logs from "@/pages/Logs";
+import Analytics from "@/pages/Analytics";
+import Connections from "@/pages/Connections"; // === 引入连接页面 ===
 import { Toaster } from "@/components/ui/sonner";
-import Rules from "./pages/Rules";
 
 function App() {
   return (
@@ -16,14 +16,14 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
           <Route path="proxies" element={<Proxies />} />
-          <Route path="profiles" element={<Profiles />} /> 
-          <Route path="rules" element={<Rules />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="logs" element={<Logs />} />
+          <Route path="profiles" element={<Profiles />} />
+          <Route path="connections" element={<Connections />} /> {/* === 替换为连接页面 === */}
           <Route path="analytics" element={<Analytics />} />
+          <Route path="logs" element={<Logs />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
-      <Toaster />
+      <Toaster position="bottom-right" theme="system" />
     </BrowserRouter>
   );
 }
