@@ -219,9 +219,24 @@ const createWindow = () => {
   win = new BrowserWindow({
     width: 1000, height: 720, minWidth: 800, minHeight: 600,
     frame: false, titleBarStyle: 'hidden', icon: ICON_PATH,
-    webPreferences: { preload: PRELOAD_PATH, nodeIntegration: false, contextIsolation: true },
+    webPreferences: {
+      preload: PRELOAD_PATH, // 确保这个路径之前已经修好了
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
   })
-  if (process.env.VITE_DEV_SERVER_URL) { win.loadURL(process.env.VITE_DEV_SERVER_URL) } else { win.loadFile('dist/index.html') }
+
+  if (process.env.VITE_DEV_SERVER_URL) {
+    win.loadURL(process.env.VITE_DEV_SERVER_URL)
+    win.webContents.openDevTools() // 开发环境自动打开控制台
+  } else {
+    // === 核心修改：生产环境加载路径 ===
+    // 解释：__dirname 在打包后是 .../resources/app.asar/dist-electron
+    // index.html 在 .../resources/app.asar/dist/index.html
+    // 所以需要回退一层 (../dist/index.html)
+    win.loadFile(path.join(__dirname, '../dist/index.html'))
+  }
+
   win.on('close', (e) => { if (!app.isQuiting) { e.preventDefault(); win?.hide(); } });
 }
 

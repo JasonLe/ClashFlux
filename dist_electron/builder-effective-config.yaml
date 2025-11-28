@@ -1,0 +1,30 @@
+directories:
+  output: dist_electron
+  buildResources: build
+appId: com.clashflux.app
+productName: Clash Flux
+files:
+  - filter:
+      - dist-electron/**/*
+      - dist/**/*
+extraResources:
+  - from: sidecars
+    to: sidecars
+    filter:
+      - '**/*'
+win:
+  target:
+    - nsis
+  requestedExecutionLevel: requireAdministrator
+mac:
+  target:
+    - dmg
+  hardenedRuntime: true
+linux:
+  target:
+    - AppImage
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Clash Flux
+electronVersion: 33.4.11
