@@ -1,0 +1,10 @@
+# 默认行为：自动转换
+* text=auto
+
+# 对于这些文件，强制使用 LF (即使在 Windows 上)
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.md text eol=lf
