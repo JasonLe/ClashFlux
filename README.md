@@ -71,7 +71,7 @@ graph TD
     
     subgraph Frontend [前端逻辑]
         UI --> ReactQuery[React Query 状态缓存]
-        UI --> WS_Hook[WebSocket Hook (流量/日志)]
+        UI --> WS_Hook["WebSocket Hook (流量/日志)"]
     end
 
     subgraph IPC [通信层]
@@ -81,15 +81,15 @@ graph TD
     end
 
     subgraph Backend [Electron 主进程]
-        Main[Main Process (Node.js)]
+        Main["Main Process (Node.js)"]
         Main --> KernelMgr[内核生命周期管理]
         Main --> LogRecorder[日志双写与聚合]
         Main --> TrayMgr[托盘菜单动态构建]
-        Main --> SysProxy[系统代理/注册表修改]
+        Main --> SysProxy["系统代理/注册表修改"]
     end
 
     subgraph Sidecar [外部二进制]
-        KernelMgr -- "Spawn & Kill" --> Mihomo[Mihomo 内核 (Child Process)]
+        KernelMgr -- "Spawn & Kill" --> Mihomo["Mihomo 内核 (Child Process)"]
         Mihomo -- "HTTP API (9097)" --> Main
         Mihomo -- "WebSocket" --> WS_Hook
     end
