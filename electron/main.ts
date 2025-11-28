@@ -50,34 +50,23 @@ const fetchKernel = async (method: string, endpoint: string, body?: any) => {
   try {
     const headers: any = { 'Content-Type': 'application/json' };
     if (cachedSecret) headers['Authorization'] = `Bearer ${cachedSecret}`;
-    
-    // 增加调试日志
-    if (method === 'PUT') console.log(`[KernelReq] ${method} ${endpoint}`, body);
-
     const res = await fetch(`http://127.0.0.1:9097${endpoint}`, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined
+      method, headers, body: body ? JSON.stringify(body) : undefined
     });
-    
-    if (!res.ok) {
-        console.error(`[KernelErr] ${res.status} ${res.statusText}`);
-        return null;
-    }
-    
+    if (!res.ok) return null;
     if (method === 'GET') return await res.json();
     return true; 
-  } catch (e) {
-    console.error(`[KernelFatal]`, e);
-    return null;
-  }
+  } catch (e) { return null; }
 };
 
 const notifyRendererUpdate = () => win?.webContents.send('clash-state-update');
 
 const updateTrayMenu = async () => {
   if (!tray) return;
-  const [config, proxiesData] = await Promise.all([fetchKernel('GET', '/configs'), fetchKernel('GET', '/proxies')]);
+  const [config, proxiesData] = await Promise.all([
+    fetchKernel('GET', '/configs'),
+    fetchKernel('GET', '/proxies')
+  ]);
   if (!config || !proxiesData) return;
 
   const currentMode = config.mode.toLowerCase();
@@ -132,14 +121,83 @@ const setSystemProxy = (enable: boolean) => {
   notifyRendererUpdate(); updateTrayMenu();
 };
 
-const startLogRecorder = () => { /* 日志代码略，保持不变 */ };
+// === 核心修复：日志记录与统计 ===
+const startLogRecorder = () => {
+  fs.mkdir(LOGS_DIR, { recursive: true }).catch(console.error);
+  // 读取历史数据
+  fs.readFile(STATS_FILE, 'utf-8').then(data => { statsData = JSON.parse(data); }).catch(() => { statsData = {}; });
+
+  const connectWs = () => {
+    // 1. 构造带 Secret 的 URL
+    const secretParam = cachedSecret ? `&token=${encodeURIComponent(cachedSecret)}` : '';
+    const url = `ws://127.0.0.1:9097/logs?level=info${secretParam}`;
+    
+    logWs = new WebSocket(url);
+    
+    logWs.on('open', () => console.log('[LogRecorder] Connected'));
+    
+    logWs.on('message', async (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString();
+        
+        // 内存日志缓存 (给前端用)
+        logBuffer.push({ id: Date.now() + Math.random(), time: timeStr, type: msg.type, payload: msg.payload });
+        if (logBuffer.length > 500) logBuffer.shift();
+
+        // 2. 修复日期 (使用本地时间，解决时区问题)
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
+        // 写入日志文件
+        const logFile = path.join(LOGS_DIR, `${dateStr}.log`);
+        const logLine = `[${timeStr}] [${msg.type}] ${msg.payload}\n`;
+        await fs.appendFile(logFile, logLine);
+
+        // 3. 统计逻辑 (增强正则)
+        if (msg.type === 'info' && (msg.payload.startsWith('[TCP]') || msg.payload.startsWith('[UDP]'))) {
+           // 匹配 "--> 域名" 或 "--> 域名:端口"
+           const match = msg.payload.match(/-->\s+([^\s:]+)/);
+           
+           if (match && match[1]) {
+             const domain = match[1];
+             // 初始化当天数据
+             if (!statsData[dateStr]) statsData[dateStr] = { total: 0, domains: {} };
+             
+             // 计数
+             statsData[dateStr].total = (statsData[dateStr].total || 0) + 1;
+             statsData[dateStr].domains[domain] = (statsData[dateStr].domains[domain] || 0) + 1;
+             
+             // 调试日志 (只在终端显示，确认是否捕获到)
+             // console.log(`[LogStats] Captured: ${domain}`);
+           }
+        }
+      } catch (e) {}
+    });
+
+    logWs.on('close', () => setTimeout(connectWs, 5000));
+    logWs.on('error', () => {});
+  };
+
+  // 延迟启动，等待内核就绪
+  setTimeout(connectWs, 3000);
+  
+  // 定时刷盘 (每分钟)
+  setInterval(() => { fs.writeFile(STATS_FILE, JSON.stringify(statsData, null, 2)).catch(console.error); }, 60 * 1000);
+};
+
 const startKernel = async () => {
   try { await fs.mkdir(USER_DATA_PATH, { recursive: true }); } catch (e) {}
   try { await fs.access(RUNTIME_CONFIG_PATH, constants.F_OK); } 
   catch { await fs.writeFile(RUNTIME_CONFIG_PATH, FORCE_CONFIG_APPEND); }
   cachedSecret = await getClashSecret();
   kernelProcess = spawn(KERNEL_BIN, ['-d', USER_DATA_PATH], { cwd: USER_DATA_PATH, stdio: 'inherit', windowsHide: true });
+  startLogRecorder();
 };
+
 const stopKernel = () => { setSystemProxy(false); if (kernelProcess) { kernelProcess.kill(); kernelProcess = null; } };
 async function getClashSecret() { try { const content = await fs.readFile(RUNTIME_CONFIG_PATH, 'utf-8'); const match = content.match(/secret:\s*["']?([^"'\s]+)["']?/); return match ? match[1] : ''; } catch (e) { return ''; } }
 
@@ -153,11 +211,16 @@ const createTray = () => {
   tray.on('double-click', () => win?.isVisible() ? win.hide() : win?.show());
 };
 
-// ... Service functions ...
 async function ensureConfigFile() { try { await fs.access(PROFILES_FILE); } catch { await fs.writeFile(PROFILES_FILE, JSON.stringify([])); } }
 async function readProfiles() { await ensureConfigFile(); const data = await fs.readFile(PROFILES_FILE, 'utf-8'); return JSON.parse(data); }
 async function saveProfiles(profiles: any[]) { await ensureConfigFile(); await fs.writeFile(PROFILES_FILE, JSON.stringify(profiles, null, 2)); return true; }
-async function getHistoryStats() { try { await fs.writeFile(STATS_FILE, JSON.stringify(statsData, null, 2)); return statsData; } catch { return {}; } }
+// === 核心修复：获取统计时强制刷盘 ===
+async function getHistoryStats() { 
+    try { 
+        await fs.writeFile(STATS_FILE, JSON.stringify(statsData, null, 2)); 
+        return statsData; 
+    } catch { return {}; } 
+}
 
 const createWindow = () => {
   win = new BrowserWindow({
@@ -181,23 +244,13 @@ app.whenReady().then(async () => {
   ipcMain.handle('get-system-proxy-status', () => global.isSystemProxyEnabled);
   ipcMain.on('refresh-tray', () => updateTrayMenu());
   
-  // === 核心 IPC: 切换代理 ===
   ipcMain.handle('select-proxy', async (_event, { group, node }) => {
-    // 强制打印日志，检查参数是否正确
     console.log(`[IPC:select-proxy] Group: "${group}", Node: "${node}"`);
-    
-    // 复用 fetchKernel
     const success = await fetchKernel('PUT', `/proxies/${encodeURIComponent(group)}`, { name: node });
-    
     if (success) {
-        // 延时刷新，确保内核生效
-        setTimeout(() => {
-            notifyRendererUpdate(); 
-            updateTrayMenu();
-        }, 300);
+        setTimeout(() => { notifyRendererUpdate(); updateTrayMenu(); }, 300);
         return true;
     } else {
-        console.error('[IPC:select-proxy] FAILED');
         throw new Error('Kernel API request failed');
     }
   });

@@ -127,7 +127,7 @@ npm install
 
 由于版权原因，仓库不包含内核二进制文件。请手动下载：
 
-1.  访问 [Mihomo Release](https://www.google.com/search?q=https://github.com/metacubex/mihomo/releases)。
+1.  访问 [Mihomo Release](https://github.com/MetaCubeX/mihomo/releases)。
 2.  下载对应系统的版本（如 `mihomo-windows-amd64-v1.x.x.zip`）。
 3.  解压并重命名为 `mihomo` (Mac/Linux) 或 `mihomo.exe` (Windows)。
 4.  将文件放入项目根目录下的 **`sidecars/`** 文件夹中。
