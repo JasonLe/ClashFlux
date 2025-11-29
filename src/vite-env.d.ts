@@ -32,5 +32,6 @@ interface Window {
         getAutoLaunch: () => Promise<boolean>;
         testWebsite: (url: string) => Promise<{ ok: boolean; status: number; time: number }>;
         restartKernel: () => Promise<boolean>;
+        getTrafficHistory: () => Promise<any[]>;
     }
 }

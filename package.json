@@ -57,7 +57,7 @@
     "appId": "com.clashflux.app",
     "productName": "Clash Flux",
     "directories": {
-      "output": "dist_electron"
+      "output": "release"
     },
     "files": [
       "dist-electron/**/*",
@@ -70,12 +70,17 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "public/icon.png",
+        "to": "icon.png"
       }
     ],
     "win": {
       "target": [
         "nsis"
       ],
+      "icon": "public/icon.png",
       "requestedExecutionLevel": "requireAdministrator"
     },
     "mac": {

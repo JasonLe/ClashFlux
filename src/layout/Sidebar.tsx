@@ -123,11 +123,11 @@ export function Sidebar() {
 
         <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between group">
-                <div className="flex flex-col"><Label className="font-medium text-xs cursor-pointer group-hover:text-primary transition-colors">System Proxy</Label></div>
+                <div className="flex flex-col"><Label className="font-medium text-xs cursor-pointer group-hover:text-primary transition-colors">系统代理</Label></div>
                 <Switch checked={!!isSysProxy} onCheckedChange={(c) => sysProxyMutation.mutate(c)} className="scale-75 data-[state=checked]:bg-green-500" />
             </div>
             <div className="flex items-center justify-between group">
-                <div className="flex flex-col"><Label className="font-medium text-xs cursor-pointer group-hover:text-primary transition-colors">TUN Mode</Label></div>
+                <div className="flex flex-col"><Label className="font-medium text-xs cursor-pointer group-hover:text-primary transition-colors">TUN 模式</Label></div>
                 <Switch checked={config?.tun?.enable || false} onCheckedChange={(c) => configMutation.mutate({ tun: { enable: c } })} className="scale-75 data-[state=checked]:bg-blue-500" />
             </div>
         </div>

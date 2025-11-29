@@ -8,9 +8,14 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Node modules
+/dist_electron
+/dist
+/release
+/node_modules
 node_modules
 dist
 dist-electron
+dist_electron
 release
 *.local
 
@@ -24,6 +29,6 @@ release
 *.njsproj
 *.sln
 *.sw?
-
+.env.local
 # OS generated files
 Thumbs.db
