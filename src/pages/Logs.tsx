@@ -1,7 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, Chip, Card } from "@heroui/react";
 import { Trash2, Pause, Play } from "lucide-react";
 import { getWsBaseUrl, CLASH_SECRET } from "@/lib/api";
 
@@ -12,100 +10,58 @@ interface LogEntry {
   payload: string;
 }
 
-// === 全局日志缓存 ===
-// 保证切换页面后数据不丢失
-let globalLogs: LogEntry[] = [];
-let globalWs: WebSocket | null = null;
-let listeners: ((logs: LogEntry[]) => void)[] = [];
-
-// 启动全局日志监听
-const startGlobalLogWs = () => {
-  if (globalWs?.readyState === WebSocket.OPEN || globalWs?.readyState === WebSocket.CONNECTING) return;
-
-  const baseUrl = getWsBaseUrl();
-  const secretParam = CLASH_SECRET ? `&token=${encodeURIComponent(CLASH_SECRET)}` : '';
-  const url = `${baseUrl}/logs?level=info${secretParam}`;
-
-  globalWs = new WebSocket(url);
-
-  globalWs.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      const newLog = { 
-        id: Date.now() + Math.random(),
-        time: new Date().toLocaleTimeString(),
-        ...data
-      };
-      
-      // 更新全局缓存 (保留最近 1000 条)
-      globalLogs = [...globalLogs, newLog];
-      if (globalLogs.length > 1000) globalLogs = globalLogs.slice(globalLogs.length - 1000);
-      
-      // 通知所有活跃的组件
-      listeners.forEach(l => l(globalLogs));
-    } catch (e) {}
-  };
-
-  globalWs.onclose = () => {
-    globalWs = null;
-    setTimeout(startGlobalLogWs, 3000);
-  };
-};
-
-// 立即启动监听 (可选，或者等到第一次进入页面再启动)
-// startGlobalLogWs(); 
-
 export default function Logs() {
-  // 初始化 state 直接使用全局缓存
-  const [logs, setLogs] = useState<LogEntry[]>(globalLogs);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isPaused, setIsPaused] = useState(false);
+  const ws = useRef<WebSocket | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 1. 如果没有连接，则建立连接
-    if (!globalWs) {
-        // 先尝试从后端拉取最近日志 (填补真空期)
-        window.electronAPI?.getRecentLogs().then((recent: any[]) => {
-            if (recent && recent.length > 0 && globalLogs.length === 0) {
-                globalLogs = recent;
-                setLogs(globalLogs);
-            }
+    const init = async () => {
+      try {
+        const recent = await window.electronAPI?.getRecentLogs();
+        if (recent && recent.length > 0) setLogs(recent);
+      } catch (e) {}
+      connect();
+    };
+    init();
+    return () => { if (ws.current) ws.current.close(); };
+  }, []);
+
+  const connect = () => {
+    const baseUrl = getWsBaseUrl();
+    const secretParam = CLASH_SECRET ? `&token=${encodeURIComponent(CLASH_SECRET)}` : '';
+    const url = `${baseUrl}/logs?level=info${secretParam}`;
+
+    ws.current = new WebSocket(url);
+    ws.current.onmessage = (event) => {
+      if (isPaused) return;
+      try {
+        const data = JSON.parse(event.data);
+        const newLog = { 
+          id: Date.now() + Math.random(),
+          time: new Date().toLocaleTimeString(),
+          ...data
+        };
+        setLogs(prev => {
+            const next = [...prev, newLog];
+            if (next.length > 500) return next.slice(next.length - 500);
+            return next;
         });
-        startGlobalLogWs();
-    } else {
-        // 如果已有连接，直接回显
-        setLogs(globalLogs);
-    }
-
-    // 2. 注册监听器
-    const listener = (newLogs: LogEntry[]) => {
-        if (!isPaused) setLogs(newLogs);
+      } catch (e) {}
     };
-    listeners.push(listener);
-
-    return () => {
-        listeners = listeners.filter(l => l !== listener);
-    };
-  }, [isPaused]);
-
-  // 自动滚动
-  useEffect(() => {
-    if (scrollRef.current && !isPaused) {
-        scrollRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [logs, isPaused]);
-
-  const clearLogs = () => {
-      globalLogs = []; // 清空全局缓存
-      setLogs([]);     // 清空当前视图
   };
 
-  const getBadgeColor = (type: string) => {
+  useEffect(() => {
+    if (scrollRef.current && !isPaused) scrollRef.current.scrollIntoView({ behavior: "smooth" });
+  }, [logs, isPaused]);
+
+  const getLogColor = (type: string) => {
     switch (type) {
-        case 'info': return "bg-blue-500 hover:bg-blue-600";
-        case 'warning': return "bg-yellow-500 hover:bg-yellow-600";
-        case 'error': return "bg-red-500 hover:bg-red-600";
-        default: return "bg-zinc-500";
+        case 'info': return "primary";
+        case 'warning': return "warning";
+        case 'error': return "danger";
+        default: return "default";
     }
   };
 
@@ -114,30 +70,31 @@ export default function Logs() {
       <div className="flex items-center justify-between shrink-0">
         <h2 className="text-2xl font-bold tracking-tight">内核日志</h2>
         <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsPaused(!isPaused)}>
-                {isPaused ? <Play size={14} className="mr-2"/> : <Pause size={14} className="mr-2"/>}
+            <Button size="sm" variant={isPaused ? "solid" : "bordered"} color="warning" onPress={() => setIsPaused(!isPaused)} startContent={isPaused ? <Play size={14}/> : <Pause size={14}/>}>
                 {isPaused ? "继续" : "暂停"}
             </Button>
-            <Button variant="outline" size="sm" onClick={clearLogs}>
-                <Trash2 size={14} className="mr-2"/> 清空
+            <Button size="sm" variant="bordered" color="danger" onPress={() => setLogs([])} startContent={<Trash2 size={14}/>}>
+                清空
             </Button>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 border rounded-lg bg-zinc-950 text-zinc-50 font-mono text-xs shadow-inner relative overflow-hidden">
-        <ScrollArea className="h-full w-full">
-            <div className="p-4">
-                {logs.length === 0 && <div className="text-center text-zinc-600 py-10">等待日志输出...</div>}
-                {logs.map((log) => (
-                    <div key={log.id} className="mb-1 flex gap-3 hover:bg-zinc-900 p-1 rounded transition-colors">
-                        <span className="text-zinc-500 shrink-0">[{log.time}]</span>
-                        <Badge className={`h-5 px-1 ${getBadgeColor(log.type)}`}>{log.type}</Badge>
-                        <span className="break-all whitespace-pre-wrap">{log.payload}</span>
-                    </div>
-                ))}
-                <div ref={scrollRef} />
-            </div>
-        </ScrollArea>
+      <div className="flex-1 min-h-0 border border-divider rounded-xl bg-[#1e1e1e] text-[#d4d4d4] font-mono text-xs shadow-inner relative overflow-hidden">
+        <div className="h-full w-full overflow-y-auto p-4 custom-scrollbar">
+            {logs.length === 0 && (
+                <div className="text-center text-default-500 py-10 opacity-50">等待日志输出...</div>
+            )}
+            {logs.map((log) => (
+                <div key={log.id} className="mb-1 flex items-start gap-3 hover:bg-white/5 p-1 rounded transition-colors group">
+                    <span className="text-default-500 shrink-0 select-none">[{log.time}]</span>
+                    <Chip size="sm" variant="flat" color={getLogColor(log.type) as any} className="h-5 px-0 min-w-[50px] justify-center capitalize font-bold">
+                        {log.type}
+                    </Chip>
+                    <span className="break-all whitespace-pre-wrap leading-5 text-default-300 group-hover:text-white transition-colors">{log.payload}</span>
+                </div>
+            ))}
+            <div ref={scrollRef} />
+        </div>
       </div>
     </div>
   );

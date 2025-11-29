@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { Card, CardBody } from "@heroui/react";
 
 interface ProxyCardProps {
   name: string;
@@ -10,53 +10,42 @@ interface ProxyCardProps {
 
 export function ProxyCard({ name, type, delay, active, onClick }: ProxyCardProps) {
   
-  const getDelayStyle = (d?: number) => {
-    if (d === undefined || d === 0) return { bg: "bg-zinc-300 dark:bg-zinc-600", text: "text-zinc-400", label: "-" };
-    if (d < 200) return { bg: "bg-emerald-500", text: "text-emerald-600", label: `${d}ms` };
-    if (d < 500) return { bg: "bg-yellow-500", text: "text-yellow-600", label: `${d}ms` };
-    return { bg: "bg-red-500", text: "text-red-600", label: `${d}ms` };
+  const getDelayColor = (d?: number) => {
+    if (!d) return "bg-default-300";
+    if (d < 200) return "bg-success";
+    if (d < 500) return "bg-warning";
+    return "bg-danger";
   };
 
-  const status = getDelayStyle(delay);
+  const getDelayText = (d?: number) => {
+      if (!d) return "Timeout";
+      return `${d}ms`;
+  };
 
   return (
-    <div
-      onClick={onClick}
-      className={cn(
-        "group relative cursor-pointer rounded-lg border px-3 py-2 transition-all duration-200 ease-out select-none", // 减小 padding (p-3.5 -> px-3 py-2)
-        "hover:border-primary/50 hover:shadow-sm active:scale-[0.98]",
-        active 
-          ? "bg-white dark:bg-zinc-800 border-primary shadow-sm ring-1 ring-primary/20" 
-          : "bg-white/40 dark:bg-zinc-900/40 border-transparent hover:bg-white dark:hover:bg-zinc-900"
-      )}
+    <Card 
+      isPressable 
+      onPress={onClick}
+      className={`border-2 transition-all w-full ${active ? "border-primary bg-primary/5" : "border-transparent bg-content2 hover:bg-content3"}`}
+      shadow="sm"
     >
-      <div className="flex items-center justify-between gap-2">
-        {/* 左侧：名称 */}
+      <CardBody className="p-3 flex flex-row justify-between items-center gap-2 overflow-hidden">
         <div className="flex flex-col min-w-0 flex-1">
-            <span className={cn(
-                "text-xs font-medium truncate transition-colors leading-tight", // text-sm -> text-xs
-                active ? "text-primary" : "text-zinc-700 dark:text-zinc-300"
-            )} title={name}>
+            <span className={`text-xs font-bold truncate ${active ? "text-primary" : "text-foreground"}`} title={name}>
                 {name}
             </span>
-            {/* 类型显示极简化，仅作为副标题 */}
-            <span className="text-[9px] text-muted-foreground/60 truncate font-mono mt-0.5">
+            <span className="text-[9px] text-default-400 uppercase tracking-wider mt-0.5 truncate">
                 {type}
             </span>
         </div>
-
-        {/* 右侧：延迟 */}
         <div className="flex flex-col items-end gap-1 shrink-0">
-            <div className="flex items-center gap-1.5">
-                <span className={cn("w-1.5 h-1.5 rounded-full", status.bg)} />
-                <span className={cn("text-[10px] font-mono font-medium", status.text)}>
-                    {status.label}
-                </span>
+            <div className="flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${getDelayColor(delay)}`}></span>
+                <span className="text-[10px] font-mono text-default-500">{getDelayText(delay)}</span>
             </div>
-            {/* 选中指示点 */}
-            {active && <div className="w-1 h-1 rounded-full bg-primary" />}
+            {active && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
         </div>
-      </div>
-    </div>
+      </CardBody>
+    </Card>
   );
 }

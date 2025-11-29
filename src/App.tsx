@@ -1,4 +1,3 @@
-// === 修改引入：从 BrowserRouter 改为 HashRouter ===
 import { HashRouter, Routes, Route } from "react-router-dom";
 import Layout from "@/layout/Layout";
 import Dashboard from "@/pages/Dashboard";
@@ -8,11 +7,10 @@ import Settings from "@/pages/Settings";
 import Logs from "@/pages/Logs";
 import Analytics from "@/pages/Analytics";
 import Connections from "@/pages/Connections";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "sonner"; // 直接从库引入，不再使用 @/components/ui/sonner
 
 function App() {
   return (
-    // === 核心修改：使用 HashRouter ===
     <HashRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
@@ -25,7 +23,7 @@ function App() {
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
-      <Toaster position="bottom-right" theme="system" />
+      <Toaster position="bottom-right" richColors closeButton theme="system" />
     </HashRouter>
   );
 }

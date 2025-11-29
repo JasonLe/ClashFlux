@@ -3,107 +3,36 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.75rem; /* 圆角稍微加大一点，更圆润 */
-  }
- 
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.6%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.6%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.6%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.6%;
-    --input: 240 3.7% 15.6%;
-    --ring: 240 4.9% 83.9%;
-  }
-}
- 
-@layer base {
-  * {
-    @apply border-border;
-  }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
-    /* 禁用默认的 OS 滚动条，使用自定义的 */
-    overflow: hidden; 
-  }
-}
-
-/* === 自定义动画工具类 === */
-@layer utilities {
-  /* 页面进入动画：轻微上浮 + 淡入 */
-  .animate-in-fade {
-    animation: enterConfig 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    @apply antialiased text-foreground bg-background;
+    /* 现代化弥散背景 */
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+      radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+      radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+    background-attachment: fixed;
+    overflow: hidden;
   }
   
-  /* 隐藏滚动条但允许滚动 (Chrome/Safari) */
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
-  /* 美化滚动条 */
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-zinc-300 dark:bg-zinc-700 rounded-full;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-zinc-400 dark:bg-zinc-600;
-  }
-
-  /* 遮罩渐变 (用于 Tab 列表左右两侧的淡出效果) */
-  .mask-image-gradient {
-    mask-image: linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent);
+  /* 亮色模式下的背景 */
+  :root[class~="light"] body {
+    background-image: 
+      radial-gradient(at 40% 20%, hsla(28,100%,74%,0.1) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, hsla(189,100%,56%,0.1) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, hsla(340,100%,76%,0.1) 0px, transparent 50%);
   }
 }
 
-@keyframes enterConfig {
-  0% {
-    opacity: 0;
-    transform: translateY(8px) scale(0.98);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  
+  /* 极简细滚动条 */
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-default-300/50 rounded-full hover:bg-default-400/80 transition-colors; }
+  
+  /* 玻璃拟态容器 */
+  .glass-panel {
+    @apply bg-background/60 backdrop-blur-xl border border-white/10 dark:border-white/5 shadow-sm;
   }
 }

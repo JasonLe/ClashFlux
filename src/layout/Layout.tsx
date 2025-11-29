@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
-import { Toaster } from "@/components/ui/sonner";
+// 移除旧的 Toaster 引用，因为它已经被移到 App.tsx 中了
 import { switchConfig } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -34,21 +34,21 @@ export default function Layout() {
   }, []);
 
   return (
-    <div className="flex h-screen w-full bg-zinc-50 dark:bg-black text-foreground overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-background text-foreground overflow-hidden font-sans">
       <Sidebar />
       {/* 主要内容区域 */}
       <main className="flex-1 overflow-hidden relative">
-        {/* 背景装饰（可选） */}
+        {/* 背景装饰（可选，网格纹理） */}
         <div className="absolute inset-0 bg-grid-black/[0.02] dark:bg-grid-white/[0.02] pointer-events-none" />
         
         <div className="h-full w-full overflow-auto custom-scrollbar p-6">
-            {/* 这里的 key={location.pathname} 确保切换路由时触发动画 */}
+            {/* 页面切换动画容器 */}
             <div key={location.pathname} className="animate-in-fade max-w-7xl mx-auto">
                 <Outlet />
             </div>
         </div>
       </main>
-      <Toaster position="bottom-right" theme="system" /> 
+      {/* Toaster 已在 App.tsx 中全局加载，此处移除 */}
     </div>
   );
 }

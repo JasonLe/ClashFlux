@@ -1,63 +1,42 @@
-// ... imports (保持不变)
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, MoreVertical, RefreshCw, Check, Trash2, FileText, FolderOpen, Database, Calendar } from "lucide-react";
+import { 
+  Card, CardBody, CardHeader, Button, Input, Modal, ModalContent, ModalHeader, 
+  ModalBody, ModalFooter, useDisclosure, Dropdown, DropdownTrigger, DropdownMenu, 
+  DropdownItem, Progress, Chip 
+} from "@heroui/react";
+import { Plus, MoreVertical, RefreshCw, Check, Trash2, FileText, FolderOpen, Database, Calendar, Globe, Tag } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { switchConfig } from "@/lib/api";
-import { Progress } from "@/components/ui/progress"; // 需要安装 progress 组件
 
-// 扩展 Profile 接口
 interface Profile {
   id: string;
   name: string;
   url: string;
   updatedAt: string;
   filePath?: string;
-  userInfo?: {
-    upload: number;
-    download: number;
-    total: number;
-    expire: number;
-  };
+  userInfo?: { upload: number; download: number; total: number; expire: number; };
 }
 
-// 解析 UserInfo 字符串
 const parseUserInfo = (str: string) => {
   if (!str) return undefined;
   const res: any = {};
   const pairs = str.split(';');
-  pairs.forEach(pair => {
-    const [key, value] = pair.trim().split('=');
-    if (key && value) res[key] = Number(value);
-  });
+  pairs.forEach(pair => { const [key, value] = pair.trim().split('='); if (key && value) res[key] = Number(value); });
   return res;
 };
 
-// 格式化流量
 const formatBytes = (bytes: number) => {
   if (!bytes) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const k = 1024; const s = ['B', 'KB', 'MB', 'GB', 'TB']; const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + s[i];
 };
 
-// 格式化日期
-const formatDate = (ts: number) => {
-  if (!ts) return '无限期';
-  return new Date(ts * 1000).toLocaleDateString();
-};
+const formatDate = (ts: number) => !ts ? '无限期' : new Date(ts * 1000).toLocaleDateString();
 
 export default function Profiles() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [activeId, setActiveId] = useState<string>("");
-  const [isOpen, setIsOpen] = useState(false);
+  const { isOpen, onOpen, onOpenChange } = useDisclosure(); // HeroUI Modal Hook
   const [formData, setFormData] = useState({ name: "", url: "" });
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -78,7 +57,7 @@ export default function Profiles() {
     await window.electronAPI.saveProfiles(newProfiles);
   };
 
-  const handleAddProfile = async () => {
+  const handleAddProfile = async (onClose: () => void) => {
     if (!formData.name || !formData.url) return toast.error("请填写完整信息");
     const newProfile: Profile = {
       id: Date.now().toString(),
@@ -87,37 +66,29 @@ export default function Profiles() {
       updatedAt: "未下载",
     };
     await saveToDisk([...profiles, newProfile]);
-    setIsOpen(false);
+    onClose();
     setFormData({ name: "", url: "" });
     toast.success("添加成功");
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDelete = async (id: string) => {
     const newProfiles = profiles.filter((p) => p.id !== id);
     await saveToDisk(newProfiles);
     toast.success("已删除");
     if (id === activeId) { setActiveId(""); localStorage.removeItem("clash_active_profile"); }
   };
 
-  const handleUpdate = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleUpdate = async (id: string) => {
     setUpdatingId(id);
     const target = profiles.find(p => p.id === id);
     if (!target) return;
 
     try {
       toast.info(`正在下载...`);
-      // 获取返回值中的 userInfo
       const result = await window.electronAPI.downloadProfile(target.url, target.id);
       
       const newProfiles = profiles.map(p => 
-        p.id === id ? { 
-            ...p, 
-            updatedAt: new Date().toLocaleString(), 
-            filePath: result.path,
-            userInfo: parseUserInfo(result.userInfo) // 解析并保存
-        } : p
+        p.id === id ? { ...p, updatedAt: new Date().toLocaleString(), filePath: result.path, userInfo: parseUserInfo(result.userInfo) } : p
       );
       
       await saveToDisk(newProfiles);
@@ -127,11 +98,8 @@ export default function Profiles() {
         await switchConfig(result.path);
         toast.success("配置已热重载");
       }
-    } catch (err: any) {
-      toast.error(`更新失败: ${err.message}`);
-    } finally {
-      setUpdatingId(null);
-    }
+    } catch (err: any) { toast.error(`更新失败: ${err.message}`); } 
+    finally { setUpdatingId(null); }
   };
 
   const handleSelect = async (profile: Profile) => {
@@ -142,9 +110,7 @@ export default function Profiles() {
         localStorage.setItem("clash_active_profile", profile.id);
         toast.success(`切换到: ${profile.name}`);
         setTimeout(() => window.location.reload(), 500);
-    } catch (e: any) {
-        toast.error("切换失败");
-    }
+    } catch (e: any) { toast.error("切换失败"); }
   };
 
   return (
@@ -152,69 +118,81 @@ export default function Profiles() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">订阅管理</h2>
         <div className="flex gap-2">
-            <Button variant="outline" onClick={() => window.electronAPI?.openProfileFolder()}><FolderOpen className="mr-2 h-4 w-4" /> 文件夹</Button>
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> 新建</Button></DialogTrigger>
-            <DialogContent>
-                <DialogHeader><DialogTitle>添加新订阅</DialogTitle></DialogHeader>
-                <div className="grid gap-4 py-4">
-                <div className="grid gap-2"><Label>名称</Label><Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
-                <div className="grid gap-2"><Label>URL</Label><Input value={formData.url} onChange={(e) => setFormData({ ...formData, url: e.target.value })} /></div>
-                </div>
-                <DialogFooter><Button onClick={handleAddProfile}>保存</Button></DialogFooter>
-            </DialogContent>
-            </Dialog>
+            <Button variant="bordered" onPress={() => window.electronAPI?.openProfileFolder()} startContent={<FolderOpen size={16}/>}>文件夹</Button>
+            <Button color="primary" onPress={onOpen} startContent={<Plus size={16}/>}>新建</Button>
         </div>
       </div>
+
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>添加新订阅</ModalHeader>
+              <ModalBody>
+                <Input label="名称" placeholder="例如: 公司节点" variant="bordered" value={formData.name} onValueChange={(v) => setFormData({...formData, name: v})} startContent={<Tag size={16} className="text-default-400"/>}/>
+                <Input label="URL" placeholder="https://..." variant="bordered" value={formData.url} onValueChange={(v) => setFormData({...formData, url: v})} startContent={<Globe size={16} className="text-default-400"/>}/>
+              </ModalBody>
+              <ModalFooter>
+                <Button color="danger" variant="light" onPress={onClose}>取消</Button>
+                <Button color="primary" onPress={() => handleAddProfile(onClose)}>保存</Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
         {profiles.map((profile) => {
             const used = (profile.userInfo?.upload || 0) + (profile.userInfo?.download || 0);
             const total = profile.userInfo?.total || 1;
             const percent = Math.min((used / total) * 100, 100);
+            const isActive = activeId === profile.id;
 
             return (
-                <Card key={profile.id} onClick={() => handleSelect(profile)} 
-                    className={cn("cursor-pointer border-2 relative group transition-all", activeId === profile.id ? "border-primary bg-primary/5" : "border-transparent hover:border-zinc-200 dark:hover:border-zinc-800")}>
-                    
-                    {activeId === profile.id && <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-2 py-1 rounded-bl-lg"><Check size={14} /></div>}
-                    
+                <Card 
+                    key={profile.id} 
+                    isPressable 
+                    onPress={() => handleSelect(profile)} 
+                    className={`border-2 transition-all ${isActive ? "border-primary bg-primary/5" : "border-transparent bg-content1"}`}
+                >
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-base font-medium flex items-center gap-2">
-                            <FileText size={18} />
-                            <span className="truncate">{profile.name}</span>
-                        </CardTitle>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="end"><DropdownMenuItem onClick={(e) => handleDelete(profile.id, e)} className="text-red-600"><Trash2 className="mr-2 h-4 w-4" /> 删除</DropdownMenuItem></DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex items-center gap-2">
+                            <div className={`p-2 rounded-full ${isActive ? 'bg-primary text-white' : 'bg-default-100 text-default-500'}`}><FileText size={18} /></div>
+                            <span className={`text-base font-bold truncate ${isActive ? 'text-primary' : ''}`}>{profile.name}</span>
+                            {isActive && <Chip size="sm" color="primary" variant="flat" startContent={<Check size={12}/>}>Active</Chip>}
+                        </div>
+                        <Dropdown>
+                            <DropdownTrigger>
+                                <Button isIconOnly variant="light" size="sm"><MoreVertical size={16}/></Button>
+                            </DropdownTrigger>
+                            <DropdownMenu aria-label="Actions">
+                                <DropdownItem key="delete" className="text-danger" color="danger" onPress={() => handleDelete(profile.id)} startContent={<Trash2 size={16}/>}>删除订阅</DropdownItem>
+                            </DropdownMenu>
+                        </Dropdown>
                     </CardHeader>
                     
-                    <CardContent className="space-y-4">
-                        <div className="text-xs text-muted-foreground truncate" title={profile.url}>{profile.url}</div>
+                    <CardBody className="space-y-4 pt-0">
+                        <p className="text-tiny text-default-400 truncate bg-default-50 p-1 rounded">{profile.url}</p>
                         
-                        {/* 流量信息条 */}
                         {profile.userInfo && (
-                            <div className="space-y-2">
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-zinc-500 flex items-center gap-1"><Database size={12}/> {formatBytes(used)} / {formatBytes(total)}</span>
-                                    <span className="text-zinc-500 flex items-center gap-1"><Calendar size={12}/> {formatDate(profile.userInfo.expire)}</span>
+                            <div className="space-y-1">
+                                <div className="flex justify-between text-tiny text-default-500">
+                                    <span className="flex items-center gap-1"><Database size={10}/> {formatBytes(used)} / {formatBytes(total)}</span>
+                                    <span className="flex items-center gap-1"><Calendar size={10}/> {formatDate(profile.userInfo.expire)}</span>
                                 </div>
-                                <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                                    <div className="h-full bg-primary transition-all duration-500" style={{ width: `${percent}%` }} />
-                                </div>
+                                <Progress size="sm" value={percent} color={percent > 80 ? "warning" : "success"} className="max-w-full" />
                             </div>
                         )}
 
-                        <div className="flex justify-between items-center pt-2">
-                            <span className={cn("text-xs", !profile.filePath ? "text-yellow-600" : "text-zinc-400")}>
+                        <div className="flex justify-between items-center pt-2 border-t border-divider">
+                            <span className={`text-tiny ${!profile.filePath ? "text-warning" : "text-default-400"}`}>
                                 {!profile.filePath ? "⚠ 未下载" : `更新于 ${profile.updatedAt}`}
                             </span>
-                            <Button variant="ghost" size="sm" className={cn("h-6 px-2 text-xs", updatingId === profile.id && "animate-spin")} onClick={(e) => handleUpdate(profile.id, e)} disabled={!!updatingId}>
-                                <RefreshCw className="h-3 w-3 mr-1" /> 更新
+                            <Button size="sm" variant="flat" color="default" onPress={() => handleUpdate(profile.id)} isLoading={updatingId === profile.id} startContent={!updatingId && <RefreshCw size={14} />}>
+                                更新
                             </Button>
                         </div>
-                    </CardContent>
+                    </CardBody>
                 </Card>
             )
         })}

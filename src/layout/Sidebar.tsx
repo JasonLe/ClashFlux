@@ -1,30 +1,19 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { 
-  LayoutDashboard, 
-  Globe, 
-  Settings, 
-  Radio, 
-  Minus, 
-  Square, 
-  X, 
-  PieChart, 
-  FileText,
-  Network // 改用 Network 图标
+  LayoutDashboard, Globe, Radio, Network, PieChart, FileText, Settings, 
+  Minus, Square, X, Zap, Activity
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { getConfigs, updateConfigs, getSystemProxyStatus } from "@/lib/api";
-import { toast } from "sonner";
+import { Button, Tooltip, Switch, cn } from "@heroui/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getConfigs, updateConfigs, getSystemProxyStatus, getVersion } from "@/lib/api";
+import { toast } from "sonner";
+import { motion } from "framer-motion";
 
-// === 菜单配置 ===
 const menuItems = [
   { icon: LayoutDashboard, label: "仪表盘", path: "/" },
-  { icon: Globe, label: "代理", path: "/proxies" },
-  { icon: Radio, label: "订阅", path: "/profiles" },
-  { icon: Network, label: "连接", path: "/connections" }, // === 修改这里 ===
+  { icon: Globe, label: "代理组", path: "/proxies" },
+  { icon: Radio, label: "订阅源", path: "/profiles" },
+  { icon: Network, label: "连接流", path: "/connections" },
   { icon: PieChart, label: "统计", path: "/analytics" },
   { icon: FileText, label: "日志", path: "/logs" },
   { icon: Settings, label: "设置", path: "/settings" },
@@ -32,22 +21,17 @@ const menuItems = [
 
 export function Sidebar() {
   const isMac = window.electronAPI?.platform === 'darwin';
+  const location = useLocation();
   const queryClient = useQueryClient();
 
-  const { data: config } = useQuery({
-    queryKey: ["configs"],
-    queryFn: getConfigs,
-  });
-
-  const { data: isSysProxy } = useQuery({
-    queryKey: ["sysProxy"],
-    queryFn: getSystemProxyStatus,
-  });
+  const { data: config } = useQuery({ queryKey: ["configs"], queryFn: getConfigs });
+  const { data: isSysProxy } = useQuery({ queryKey: ["sysProxy"], queryFn: getSystemProxyStatus });
+  const { data: version } = useQuery({ queryKey: ["version"], queryFn: getVersion });
 
   const sysProxyMutation = useMutation({
-    mutationFn: async (checked: boolean) => await window.electronAPI?.setSystemProxy(checked),
+    mutationFn: async (v: boolean) => await window.electronAPI?.setSystemProxy(v),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sysProxy"] }),
-    onError: () => toast.error("设置失败")
+    onError: () => toast.error("系统代理设置失败")
   });
 
   const configMutation = useMutation({
@@ -59,77 +43,79 @@ export function Sidebar() {
     onError: () => toast.error("修改失败")
   });
 
-  const handleClose = () => window.electronAPI?.close();
-  const handleMin = () => window.electronAPI?.minimize();
-  const handleMax = () => window.electronAPI?.maximize();
-
   return (
-    <div className="w-64 h-screen bg-zinc-50/80 dark:bg-zinc-900/80 border-r border-zinc-200 dark:border-zinc-800 flex flex-col shrink-0 backdrop-blur-xl transition-colors duration-300">
+    <div className="w-[260px] h-screen flex flex-col shrink-0 bg-background/40 backdrop-blur-2xl border-r border-divider/50 relative z-50">
       
-      <div className="h-12 flex items-center px-4 shrink-0 select-none" style={{ WebkitAppRegion: 'drag' } as any}>
+      {/* 拖拽区域 */}
+      <div className="h-14 flex items-center px-6 shrink-0 select-none" style={{ WebkitAppRegion: 'drag' } as any}>
          {!isMac && (
-           <div className="flex gap-2 group z-50 transition-opacity duration-300 hover:opacity-100 opacity-60" style={{ WebkitAppRegion: 'no-drag' } as any}>
-              <div onClick={handleClose} className="w-3 h-3 rounded-full bg-[#FF5F57] border border-[#E0443E] hover:scale-110 transition-transform cursor-pointer flex items-center justify-center group-hover:bg-[#FF5F57]"><X size={8} className="opacity-0 group-hover:opacity-60 text-black" /></div>
-              <div onClick={handleMin} className="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123] hover:scale-110 transition-transform cursor-pointer flex items-center justify-center group-hover:bg-[#FFBD2E]"><Minus size={8} className="opacity-0 group-hover:opacity-60 text-black" /></div>
-              <div onClick={handleMax} className="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29] hover:scale-110 transition-transform cursor-pointer flex items-center justify-center group-hover:bg-[#27C93F]"><Square size={6} className="opacity-0 group-hover:opacity-60 text-black" /></div>
+           <div className="flex gap-2 group z-50 transition-opacity opacity-60 hover:opacity-100" style={{ WebkitAppRegion: 'no-drag' } as any}>
+              <div onClick={() => window.electronAPI?.close()} className="w-3 h-3 rounded-full bg-[#FF5F57] hover:scale-110 cursor-pointer shadow-sm border border-black/10" />
+              <div onClick={() => window.electronAPI?.minimize()} className="w-3 h-3 rounded-full bg-[#FFBD2E] hover:scale-110 cursor-pointer shadow-sm border border-black/10" />
+              <div onClick={() => window.electronAPI?.maximize()} className="w-3 h-3 rounded-full bg-[#27C93F] hover:scale-110 cursor-pointer shadow-sm border border-black/10" />
            </div>
          )}
       </div>
 
-      <div className="text-xl font-bold mb-6 px-6 flex items-center gap-2 tracking-tight">
-        Clash <span className="text-primary">Flux</span>
+      {/* Header */}
+      <div className="px-6 mb-8 flex items-center gap-3 select-none">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+            <Zap size={18} fill="currentColor" />
+        </div>
+        <div>
+            <h1 className="font-bold text-lg leading-none tracking-tight">Clash Flux</h1>
+            <div className="flex items-center gap-1.5 mt-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${version ? 'bg-success' : 'bg-danger'} animate-pulse`}></span>
+                <p className="text-[10px] text-default-400 font-mono">{version ? version.version : 'Offline'}</p>
+            </div>
+        </div>
       </div>
       
-      <nav className="flex flex-col gap-1 px-3 flex-1 overflow-y-auto custom-scrollbar">
-        {menuItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              cn(
-                "group flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ease-in-out relative overflow-hidden",
-                isActive 
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
-                  : "text-zinc-500 hover:bg-zinc-200/50 dark:text-zinc-400 dark:hover:bg-white/5 hover:translate-x-1"
-              )
-            }
-          >
-            <item.icon size={18} className="transition-transform duration-300 group-hover:scale-110" />
-            {item.label}
-            {({isActive}) => isActive && (
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
-            )}
-          </NavLink>
-        ))}
+      {/* Menu */}
+      <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
+        {menuItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <NavLink key={item.path} to={item.path} className="block relative group">
+               {isActive && (
+                 <motion.div
+                   layoutId="sidebar-active"
+                   className="absolute inset-0 bg-default-100 dark:bg-default-50/50 rounded-xl"
+                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                 />
+               )}
+               <div className={cn(
+                   "relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-200",
+                   isActive ? "text-primary font-semibold" : "text-default-500 hover:text-foreground hover:bg-default-50/50"
+               )}>
+                  <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} className={isActive ? "text-primary" : "text-default-400"} />
+                  <span>{item.label}</span>
+               </div>
+            </NavLink>
+          )
+        })}
       </nav>
 
-      <div className="p-4 mx-2 mb-2 rounded-xl bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/5 backdrop-blur-md space-y-4 shadow-sm">
-        <div className="space-y-1.5">
-            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground ml-1 font-bold">MODE</Label>
-            <Select 
-                value={config?.mode.toLowerCase() || 'rule'} 
-                onValueChange={(val) => configMutation.mutate({ mode: val })}
-            >
-                <SelectTrigger className="h-8 text-xs bg-transparent border-black/10 dark:border-white/10 focus:ring-0 focus:ring-offset-0">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="rule">Rule (规则)</SelectItem>
-                    <SelectItem value="global">Global (全局)</SelectItem>
-                    <SelectItem value="direct">Direct (直连)</SelectItem>
-                </SelectContent>
-            </Select>
+      {/* Bottom Controls */}
+      <div className="p-4 mx-3 mb-4 mt-2 rounded-2xl bg-content2/50 border border-white/5 backdrop-blur-md space-y-3">
+        <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-default-600">系统代理</span>
+            <Switch 
+                size="sm" 
+                color="success"
+                isSelected={!!isSysProxy} 
+                onValueChange={(v) => sysProxyMutation.mutate(v)}
+                classNames={{ wrapper: "group-data-[selected=true]:bg-success" }}
+            />
         </div>
-
-        <div className="space-y-3 pt-1">
-            <div className="flex items-center justify-between group">
-                <div className="flex flex-col"><Label className="font-medium text-xs cursor-pointer group-hover:text-primary transition-colors">系统代理</Label></div>
-                <Switch checked={!!isSysProxy} onCheckedChange={(c) => sysProxyMutation.mutate(c)} className="scale-75 data-[state=checked]:bg-green-500" />
-            </div>
-            <div className="flex items-center justify-between group">
-                <div className="flex flex-col"><Label className="font-medium text-xs cursor-pointer group-hover:text-primary transition-colors">TUN 模式</Label></div>
-                <Switch checked={config?.tun?.enable || false} onCheckedChange={(c) => configMutation.mutate({ tun: { enable: c } })} className="scale-75 data-[state=checked]:bg-blue-500" />
-            </div>
+        <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-default-600">TUN 模式</span>
+            <Switch 
+                size="sm" 
+                color="primary"
+                isSelected={config?.tun?.enable || false} 
+                onValueChange={(v) => configMutation.mutate({ tun: { enable: v } })} 
+            />
         </div>
       </div>
     </div>
